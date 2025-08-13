@@ -1,0 +1,2 @@
+const e=async()=>{try{const a=await fetch("/api/blacklist",{cache:"no-store"});if(!a.ok)return[];const r=await a.json();return(Array.isArray(r.addresses)?r.addresses:[]).map(s=>String(s).toLowerCase())}catch{return[]}};let t=null;const c=async a=>Array.isArray(a)?(t||(t=await e()),a.filter(r=>!t.includes(String(r.address||"").toLowerCase()))):[];export{e as fetchBlacklist,c as filterOutBlacklisted};
+//# sourceMappingURL=blacklist-DCkqdEOg-DQnnouI3.js.map

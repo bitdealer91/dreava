@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Worker Test</title>
+</head>
+<body>
+    <h1>Worker Test</h1>
+    <button onclick="testWorker()">Test Worker</button>
+    <div id="result"></div>
+
+    <script>
+        async function testWorker() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing worker...';
+            
+            try {
+                // Создаем тестовый файл
+                const testFile = new File(['test content'], 'test.txt', { type: 'text/plain' });
+                
+                // Создаем worker
+                const worker = new Worker('/workers/upload-worker.js');
+                
+                worker.onmessage = function(event) {
+                    console.log('Worker message:', event.data);
+                    resultDiv.innerHTML += '<br>Worker message: ' + JSON.stringify(event.data);
+                };
+                
+                worker.onerror = function(error) {
+                    console.error('Worker error:', error);
+                    resultDiv.innerHTML += '<br>Worker error: ' + error.message;
+                };
+                
+                // Отправляем тестовое сообщение
+                worker.postMessage({
+                    type: 'UPLOAD_FILES',
+                    data: {
+                        files: [testFile],
+                        names: ['Test NFT'],
+                        descriptions: ['Test description'],
+                        attributes: [[]],
+                        options: {}
+                    },
+                    id: 1
+                });
+                
+            } catch (error) {
+                console.error('Test error:', error);
+                resultDiv.innerHTML += '<br>Test error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html> 

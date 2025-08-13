@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Dreava Launchpad - NFT Launchpad Platform" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://dreava.art/" />
+    <meta property="og:title" content="Dreava Launchpad - NFT Launchpad Platform" />
+    <meta property="og:description" content="Create, launch, and trade NFT collections on the Somnia blockchain. Join the future of digital art and collectibles." />
+    <meta property="og:image" content="https://dreava.art/og-image.svg" />
+    <meta property="og:site_name" content="Dreava Launchpad" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://dreava.art/" />
+    <meta property="twitter:title" content="Dreava Launchpad - NFT Launchpad Platform" />
+    <meta property="twitter:description" content="Create, launch, and trade NFT collections on the Somnia blockchain. Join the future of digital art and collectibles." />
+    <meta property="twitter:image" content="https://dreava.art/og-image.svg" />
+    
+    <!-- Additional Meta Tags -->
+    <meta name="theme-color" content="#000000" />
+    <meta name="keywords" content="NFT, blockchain, digital art, collectibles, Somnia, launchpad" />
+    <meta name="author" content="Dreava" />
+    
+    <title>Dreava Launchpad</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    
+    <!-- 🛡️ АГРЕССИВНЫЙ BigInt полифилл ДО всех скриптов -->
+    <script>
+      // Агрессивный BigInt полифилл для production
+      (function() {
+        'use strict';
+        
+        console.log('🚀 Loading AGGRESSIVE BigInt polyfill...');
+        
+        // 🔧 MetaMask совместимость - ПЕРВЫМ ДЕЛОМ
+        if (typeof window.ethereum !== 'undefined') {
+          console.log('✅ MetaMask already detected, preserving provider');
+        } else {
+          // Создаем placeholder для ethereum provider
+          Object.defineProperty(window, 'ethereum', {
+            configurable: true,
+            enumerable: true,
+            get: function() {
+              return window._ethereumProvider;
+            },
+            set: function(value) {
+              if (!window._ethereumProvider) {
+                window._ethereumProvider = value;
+                console.log('✅ Ethereum provider set:', value);
+              } else {
+                console.warn('⚠️ Ethereum provider already set, ignoring duplicate');
+              }
+            }
+          });
+        }
+        
+        // 🚨 ПЕРЕХВАТЫВАЕМ ВСЕ ОШИБКИ ГЛОБАЛЬНО
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        // Перехватываем console.error
+        console.error = function(...args) {
+          const message = args.join(' ');
+          
+          // Фильтруем BigInt ошибки
+          if (message.includes('BigInt') && message.includes('Cannot convert')) {
+            console.warn('🚨 BigInt conversion error intercepted:', message);
+            
+            // Автоматически очищаем кэш wagmi
+            try {
+              if (typeof localStorage !== 'undefined') {
+                localStorage.removeItem('wagmi.cache');
+                localStorage.removeItem('wagmi.wallet');
+                localStorage.removeItem('wagmi.connected');
+                localStorage.removeItem('wagmi.account');
+                localStorage.removeItem('wagmi.chainId');
+                console.log('✅ Wagmi cache cleared after BigInt error');
+              }
+            } catch (e) {
+              console.warn('⚠️ Failed to clear wagmi cache:', e);
+            }
+            
+            return; // Не показываем ошибку пользователю
+          }
+          
+          // Вызываем оригинальный console.error
+          return originalError.apply(console, args);
+        };
+        
+        // Перехватываем console.warn
+        console.warn = function(...args) {
+          const message = args.join(' ');
+          
+          // Фильтруем BigInt предупреждения
+          if (message.includes('BigInt') && message.includes('Cannot convert')) {
+            console.log('🚨 BigInt warning intercepted:', message);
+            return; // Не показываем предупреждение
+          }
+          
+          // Вызываем оригинальный console.warn
+          return originalWarn.apply(console, args);
+        };
+        
+        // 🛡️ АГРЕССИВНЫЕ BigInt операции
+        const originalBigInt = window.BigInt;
+        
+        // Перехватываем создание BigInt для безопасности
+        window.BigInt = function(value) {
+          try {
+            if (typeof value === 'bigint') return value;
+            
+            if (typeof value === 'string') {
+              const cleanValue = value.replace(/n$/, '');
+              if (isNaN(parseFloat(cleanValue))) {
+                console.log('⚠️ Invalid BigInt string:', value, 'using 0n');
+                return 0n;
+              }
+              return originalBigInt(cleanValue);
+            }
+            
+            if (typeof value === 'number') {
+              if (!isFinite(value)) {
+                console.log('⚠️ Invalid BigInt number:', value, 'using 0n');
+                return 0n;
+              }
+              return originalBigInt(Math.floor(value));
+            }
+            
+            return originalBigInt(value);
+          } catch (error) {
+            console.log('⚠️ BigInt conversion failed:', error, 'Value:', value, 'using 0n');
+            return 0n;
+          }
+        };
+        
+        // 🔧 ПЕРЕХВАТЫВАЕМ Number() конвертации
+        const originalNumber = window.Number;
+        window.Number = function(value) {
+          try {
+            if (typeof value === 'bigint') {
+              const stringValue = value.toString();
+              const parsed = parseFloat(stringValue);
+              if (isNaN(parsed)) {
+                console.log('⚠️ BigInt to Number conversion failed, using 0');
+                return 0;
+              }
+              return parsed;
+            }
+            
+            return originalNumber(value);
+          } catch (error) {
+            console.log('⚠️ Number conversion failed:', error, 'Value:', value, 'using 0');
+            return 0;
+          }
+        };
+        
+        // 🔧 ПЕРЕХВАТЫВАЕМ parseInt и parseFloat (убрано дублирование)
+        // Эти функции переопределяются ниже для кошельков
+        
+
+        
+        window.parseFloat = function(value) {
+          try {
+            if (typeof value === 'bigint') {
+              const stringValue = value.toString();
+              return originalParseFloat(stringValue);
+            }
+            return originalParseFloat(value);
+          } catch (error) {
+            console.log('⚠️ parseFloat failed:', error, 'Value:', value, 'using 0');
+            return 0;
+          }
+        };
+        
+        // 🔧 ПОЛИФИЛЛЫ для Number методов (критично для MetaMask!)
+        if (!Number.isInteger) {
+          Number.isInteger = function(value) {
+            try {
+              return typeof value === 'number' && 
+                     isFinite(value) && 
+                     Math.floor(value) === value;
+            } catch (error) {
+              console.log('⚠️ Number.isInteger polyfill failed:', error);
+              return false;
+            }
+          };
+          console.log('✅ Number.isInteger polyfill added');
+        }
+        
+        if (!Number.isSafeInteger) {
+          Number.isSafeInteger = function(value) {
+            try {
+              return Number.isInteger(value) && 
+                     value >= Number.MIN_SAFE_INTEGER && 
+                     value <= Number.MAX_SAFE_INTEGER;
+            } catch (error) {
+              console.log('⚠️ Number.isSafeInteger polyfill failed:', error);
+              return false;
+            }
+          };
+          console.log('✅ Number.isSafeInteger polyfill added');
+        }
+        
+        if (!Number.isFinite) {
+          Number.isFinite = function(value) {
+            try {
+              return typeof value === 'number' && isFinite(value);
+            } catch (error) {
+              console.log('⚠️ Number.isFinite polyfill failed:', error);
+              return false;
+            }
+          };
+          console.log('✅ Number.isFinite polyfill added');
+        }
+        
+        if (!Number.isNaN) {
+          Number.isNaN = function(value) {
+            try {
+              return typeof value === 'number' && isNaN(value);
+            } catch (error) {
+              console.log('⚠️ Number.isNaN polyfill failed:', error);
+              return false;
+            }
+          };
+          console.log('✅ Number.isNaN polyfill added');
+        }
+        
+        // 🔧 ПОЛИФИЛЛЫ для Math методов
+        if (!Math.sign) {
+          Math.sign = function(value) {
+            try {
+              if (value === 0 || isNaN(value)) return value;
+              return value > 0 ? 1 : -1;
+            } catch (error) {
+              console.log('⚠️ Math.sign polyfill failed:', error);
+              return 1;
+            }
+          };
+          console.log('✅ Math.sign polyfill added');
+        }
+        
+        if (!Math.trunc) {
+          Math.trunc = function(value) {
+            try {
+              if (isNaN(value) || !isFinite(value)) return value;
+              return value < 0 ? Math.ceil(value) : Math.floor(value);
+            } catch (error) {
+              console.log('⚠️ Math.trunc polyfill failed:', error);
+              return 0;
+            }
+          };
+          console.log('✅ Math.trunc polyfill added');
+        }
+        
+        // 🚨 ПЕРЕХВАТЫВАЕМ ГЛОБАЛЬНЫЕ ОШИБКИ
+        window.addEventListener('error', function(event) {
+          const message = event.error?.message || event.message || '';
+          
+          // Перехватываем BigInt ошибки
+          if (message.includes('BigInt')) {
+            console.log('🚨 Global BigInt error intercepted:', message);
+            event.preventDefault();
+            event.stopPropagation();
+            return false;
+          }
+          
+          // Перехватываем integer валидацию ошибки
+          if (message.includes('invalid integer') || 
+              message.includes('positive integer expected') ||
+              message.includes('Wrong integer') ||
+              message.includes('Wrong positive integer')) {
+            console.log('🚨 Integer validation error intercepted:', message);
+            event.preventDefault();
+            event.stopPropagation();
+            return false;
+          }
+        });
+        
+        // 🚨 ПЕРЕХВАТЫВАЕМ НЕОБРАБОТАННЫЕ ПРОМИСЫ
+        window.addEventListener('unhandledrejection', function(event) {
+          const message = event.reason?.message || '';
+          
+          // Перехватываем BigInt ошибки
+          if (message.includes('BigInt')) {
+            console.log('🚨 Unhandled BigInt promise rejection intercepted:', message);
+            event.preventDefault();
+            event.stopPropagation();
+            return false;
+          }
+          
+          // Перехватываем integer валидацию ошибки
+          if (message.includes('invalid integer') || 
+              message.includes('positive integer expected') ||
+              message.includes('Wrong integer') ||
+              message.includes('Wrong positive integer')) {
+            console.log('🚨 Unhandled integer validation rejection intercepted:', message);
+            event.preventDefault();
+            event.stopPropagation();
+            return false;
+          }
+        });
+        
+        // 🔧 АГРЕССИВНАЯ ВАЛИДАЦИЯ ЧИСЕЛ для кошельков
+        const originalIsInteger = Number.isInteger;
+        const originalIsSafeInteger = Number.isSafeInteger;
+        
+        // Перехватываем Number.isInteger
+        Number.isInteger = function(value) {
+          try {
+            // Если это BigInt - конвертируем безопасно
+            if (typeof value === 'bigint') {
+              const stringValue = value.toString();
+              const parsed = parseFloat(stringValue);
+              return !isNaN(parsed) && isFinite(parsed) && Math.floor(parsed) === parsed;
+            }
+            
+            // Если это строка - пробуем парсить
+            if (typeof value === 'string') {
+              const parsed = parseFloat(value);
+              return !isNaN(parsed) && isFinite(parsed) && Math.floor(parsed) === parsed;
+            }
+            
+            // Оригинальная логика
+            return originalIsInteger(value);
+          } catch (error) {
+            console.log('⚠️ Number.isInteger validation failed:', error, 'Value:', value);
+            return false;
+          }
+        };
+        
+        // Перехватываем Number.isSafeInteger
+        Number.isSafeInteger = function(value) {
+          try {
+            // Если это BigInt - проверяем безопасность
+            if (typeof value === 'bigint') {
+              const stringValue = value.toString();
+              const parsed = parseFloat(stringValue);
+              return Number.isInteger(parsed) && 
+                     parsed >= Number.MIN_SAFE_INTEGER && 
+                     parsed <= Number.MAX_SAFE_INTEGER;
+            }
+            
+            // Если это строка - пробуем парсить
+            if (typeof value === 'string') {
+              const parsed = parseFloat(value);
+              return Number.isInteger(parsed) && 
+                     parsed >= Number.MIN_SAFE_INTEGER && 
+                     parsed <= Number.MAX_SAFE_INTEGER;
+            }
+            
+            // Оригинальная логика
+            return originalIsSafeInteger(value);
+          } catch (error) {
+            console.log('⚠️ Number.isSafeInteger validation failed:', error, 'Value:', value);
+            return false;
+          }
+        };
+        
+        // 🔧 ПЕРЕХВАТЫВАЕМ parseInt для кошельков
+        const originalParseInt = window.parseInt;
+        window.parseInt = function(value, radix) {
+          try {
+            // Если это BigInt - конвертируем безопасно
+            if (typeof value === 'bigint') {
+              const stringValue = value.toString();
+              return originalParseInt(stringValue, radix);
+            }
+            
+            // Если это строка с 'n' суффиксом - убираем
+            if (typeof value === 'string' && value.endsWith('n')) {
+              const cleanValue = value.slice(0, -1);
+              return originalParseInt(cleanValue, radix);
+            }
+            
+            // Оригинальная логика
+            return originalParseInt(value, radix);
+          } catch (error) {
+            console.log('⚠️ parseInt validation failed:', error, 'Value:', value, 'using 0');
+            return 0;
+          }
+        };
+        
+        // 🔧 ПЕРЕХВАТЫВАЕМ parseFloat для кошельков
+        const originalParseFloat = window.parseFloat;
+        window.parseFloat = function(value) {
+          try {
+            // Если это BigInt - конвертируем безопасно
+            if (typeof value === 'bigint') {
+              const stringValue = value.toString();
+              return originalParseFloat(stringValue);
+            }
+            
+            // Если это строка с 'n' суффиксом - убираем
+            if (typeof value === 'string' && value.endsWith('n')) {
+              const cleanValue = value.slice(0, -1);
+              return originalParseFloat(cleanValue);
+            }
+            
+            // Оригинальная логика
+            return originalParseFloat(value);
+          } catch (error) {
+            console.log('⚠️ parseFloat validation failed:', error, 'Value:', value, 'using 0');
+            return 0;
+          }
+        };
+        
+        console.log('✅ AGGRESSIVE BigInt polyfill loaded successfully');
+      })();
+    </script>
+    
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+<ns0:svg xmlns:ns0="http://www.w3.org/2000/svg" width="249" height="54.5" viewBox="0 0 249 54.5" version="1.1" xml:space="preserve" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <ns0:g>
+        <ns0:g>
+            <ns0:g>
+                <ns0:g>
+                    <ns0:path d="M1151.78,37.052C1151.78,29.535 1130.07,23.433 1103.33,23.433L314.422,23.433C287.681,23.433 265.972,29.535 265.972,37.052L265.972,64.289C265.972,71.806 287.681,77.908 314.422,77.908L1103.33,77.908C1130.07,77.908 1151.78,71.806 1151.78,64.289L1151.78,37.052Z" style="fill:url(#_Linear1);" />
+                </ns0:g>
+                <ns0:g>
+                    <ns0:text x="89.146px" y="37.587px" style="font-family:'MalgunGothicBold', 'Malgun Gothic', sans-serif;font-weight:700;font-size:20.831px;fill:white;">Cr<ns0:tspan x="110.547px 122px " y="37.587px 37.587px ">ea</ns0:tspan>te collection</ns0:text>
+                </ns0:g>
+            </ns0:g>
+        </ns0:g>
+    </ns0:g>
+    <ns0:defs>
+        <ns0:linearGradient id="_Linear1" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(885.808,0,0,54.4748,265.972,50.6705)"><ns0:stop offset="0" style="stop-color:rgb(69,180,239);stop-opacity:1" /><ns0:stop offset="0.5" style="stop-color:rgb(87,43,246);stop-opacity:1" /><ns0:stop offset="1" style="stop-color:rgb(209,19,153);stop-opacity:1" /></ns0:linearGradient>
+    </ns0:defs>
+</ns0:svg>

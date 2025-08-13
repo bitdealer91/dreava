@@ -1,0 +1,509 @@
+// MultipleNFT.jsx
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import uploadIcon from '../../assets/upload-icon.svg';
+import { Loader2, X } from 'lucide-react';
+import { getIpfsUrls, fetchWithFallback } from '../../utils/ipfs';
+
+const MultipleNFT = ({ collectionAddress }) => {
+  const [collectionInfo, setCollectionInfo] = useState({ name: '', description: '' });
+  const [images, setImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [progressText, setProgressText] = useState('');
+  const [results, setResults] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [failed, setFailed] = useState([]);
+  const [showPostSuccessOptions, setShowPostSuccessOptions] = useState(false);
+  const fileInputRef = useRef(null);
+  const navigate = useNavigate();
+  const [startingIndex, setStartingIndex] = useState(1);
+  const BATCH_SIZE = 25;
+  const MAX_NFT_LIMIT = 200;
+
+  useEffect(() => {
+    const stored = JSON.parse(localStorage.getItem('dreava_collections')) || [];
+    const current = stored.find((c) => c.address === collectionAddress);
+    if (current) {
+      setCollectionInfo({ name: current.name || '', description: current.description || '' });
+    }
+
+    const existing = JSON.parse(localStorage.getItem(`collection_${collectionAddress}_nfts`)) || [];
+    const existingNumbers = existing
+      .map(nft => {
+        const match = nft.name?.match(/#(\d+)$/);
+        return match ? parseInt(match[1], 10) : null;
+      })
+      .filter(n => n !== null);
+    const startIndex = existingNumbers.length ? Math.max(...existingNumbers) + 1 : 1;
+    setStartingIndex(startIndex);
+  }, [collectionAddress]);
+
+  useEffect(() => {
+    if (images.length === 0) {
+      setStartingIndex(1);
+    } else {
+      const updatedImages = images.map((img, index) => ({
+        ...img,
+        name: `${collectionInfo.name || 'NFT'} #${index + 1}`
+      }));
+      setImages(updatedImages);
+    }
+  }, [images.length, collectionInfo.name]);
+
+  const uploadMultipleToIPFSViaServer = async (files, names, descriptions, allAttributes) => {
+    const formData = new FormData();
+    
+    console.log('=== UPLOAD DEBUG ===');
+    console.log('Files to upload:', files.length);
+    console.log('Names from table:', names);
+    
+    files.forEach((file, idx) => {
+      const fileExtension = file.name.split('.').pop() || 'png';
+      const fileName = `nft_${idx}.${fileExtension}`;
+      
+      const renamedFile = new File([file], fileName, { type: file.type });
+      
+      formData.append('files', renamedFile);
+      formData.append(`name_${idx}`, names[idx]);
+      formData.append(`description_${idx}`, descriptions[idx] || '');
+      formData.append(`attributes_${idx}`, JSON.stringify(allAttributes[idx]));
+      
+      console.log(`File ${idx}:`, {
+        originalName: file.name,
+        newName: fileName,
+        displayName: names[idx],
+        type: file.type,
+        size: file.size,
+        renamedFile: renamedFile.name
+      });
+    });
+
+    console.log('FormData contents:');
+    for (let [key, value] of formData.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}:`, value.name, value.type, value.size);
+      } else {
+        console.log(`${key}:`, value);
+      }
+    }
+
+    try {
+      const res = await fetch('/pin-multiple-files', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Server response:', res.status, errorText);
+        throw new Error(`Server error: ${res.status} - ${errorText}`);
+      }
+      
+      const result = await res.json();
+      console.log('Upload response:', result);
+      return result;
+    } catch (error) {
+      console.error('Upload error:', error);
+      throw error;
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer?.files || e.target.files);
+    
+    const validFiles = files.filter(file => {
+      const isValid = file.type.startsWith('image/');
+      if (!isValid) {
+        console.warn('Skipping non-image file:', file.name);
+      }
+      return isValid;
+    });
+    
+    if (validFiles.length === 0) {
+      alert('Please select only image files.');
+      return;
+    }
+    
+    const uploads = validFiles.map((file, index) => {
+      const fileExtension = file.name.split('.').pop() || 'png';
+      const baseName = `${collectionInfo.name || 'NFT'}`;
+      const number = startingIndex + index;
+      
+      return {
+        file,
+        name: `${baseName} #${number}`,
+        description: '',
+        attributes: [{ trait_type: '', value: '' }],
+        originalName: file.name,
+        fileExtension: fileExtension
+      };
+    });
+    
+    setImages([...images, ...uploads]);
+    setStartingIndex(prev => prev + validFiles.length);
+    
+    console.log('Added images:', uploads.map(u => ({ name: u.name, originalName: u.originalName })));
+  };
+
+  function chunkArray(array, size) {
+    const result = [];
+    for (let i = 0; i < array.length; i += size) {
+      result.push(array.slice(i, i + size));
+    }
+    return result;
+  }
+
+  const handlePublish = async () => {
+    if (!images.length || !collectionInfo.name) {
+      alert('Please upload at least one image.');
+      return;
+    }
+    if (images.length > MAX_NFT_LIMIT) {
+      alert(`You can upload a maximum of ${MAX_NFT_LIMIT} NFTs per collection. Please reduce the number of images.`);
+      return;
+    }
+    try {
+      setUploading(true);
+      setProgress(0);
+      setProgressText('Preparing upload...');
+      setShowModal(true);
+      setResults([]);
+      setFailed([]);
+      setShowPostSuccessOptions(false);
+
+      const chunks = chunkArray(images, BATCH_SIZE);
+      let allResults = [];
+      let allFailed = [];
+
+      for (let i = 0; i < chunks.length; i++) {
+        const batch = chunks[i];
+        const files = batch.map((img) => img.file);
+        const names = batch.map((img) => img.name);
+        const descriptions = batch.map((img) => img.description || collectionInfo.description);
+        const allAttributes = batch.map((img) => img.attributes);
+
+        console.log(`Batch ${i + 1} names:`, names);
+
+        setProgressText(`Uploading batch ${i + 1}/${chunks.length} (${batch.length} images)...`);
+        setProgress(Math.round((i / chunks.length) * 80));
+
+        try {
+          const response = await uploadMultipleToIPFSViaServer(files, names, descriptions, allAttributes);
+          const existing = JSON.parse(localStorage.getItem(`collection_${collectionAddress}_nfts`) || '[]');
+          
+          if (!response.results || !Array.isArray(response.results)) {
+            throw new Error('Invalid server response format');
+          }
+          
+          setProgressText(`Processing batch ${i + 1}/${chunks.length} results...`);
+          
+          const formatted = await Promise.all(
+            response.results.map(async (r, index) => {
+              try {
+                if (r.status !== 'success') {
+                  throw new Error(`Server marked as failed: ${r.error || 'Unknown error'}`);
+                }
+                
+                if (!r.metadataIpfs) {
+                  throw new Error('No metadata IPFS hash returned');
+                }
+                
+                console.log('🔍 Debug: metadataIpfs from server:', r.metadataIpfs);
+                const urls = getIpfsUrls(r.metadataIpfs);
+                console.log('🔍 Debug: URLs from getIpfsUrls:', urls);
+                
+                const metadata = await fetchWithFallback(urls);
+                
+                if (!metadata) {
+                  throw new Error('Failed to fetch metadata from IPFS');
+                }
+                
+                const nftName = names[index] || r.name || `${collectionInfo.name} #${startingIndex + index}`;
+                
+                return {
+                  id: Date.now() + index,
+                  name: nftName,
+                  description: descriptions[index] || '',
+                  image: metadata.image ? getIpfsUrls(metadata.image)[0] : '',
+                  price: 0,
+                  status: 'draft',
+                  type: 'multiple',
+                  attributes: allAttributes[index] || [],
+                  tokenURI: r.metadataIpfs,
+                  failed: false,
+                };
+              } catch (err) {
+                console.error(`Error processing result ${index}:`, err);
+                return {
+                  name: names[index] || `${collectionInfo.name} #${startingIndex + index}`,
+                  index: index,
+                  failed: true,
+                  reason: err.message || 'Unknown error'
+                };
+              }
+            })
+          );
+
+          const successful = formatted.filter((item) => !item.failed);
+          const failedItems = formatted.filter((item) => item.failed);
+          allResults = [...allResults, ...successful];
+          allFailed = [...allFailed, ...failedItems];
+
+          if (successful.length) {
+            localStorage.setItem(`collection_${collectionAddress}_nfts`, JSON.stringify([...existing, ...successful]));
+          }
+          
+          console.log(`Batch ${i + 1} completed:`, {
+            successful: successful.length,
+            failed: failedItems.length,
+            total: batch.length
+          });
+        } catch (err) {
+          console.error(`Batch ${i + 1} failed:`, err);
+          allFailed = [...allFailed, ...batch.map((img, idx) => ({
+            name: img.name,
+            index: idx,
+            failed: true,
+            reason: err.message || 'Batch upload failed'
+          }))];
+        }
+      }
+
+      setProgressText('Finalizing upload...');
+      setProgress(90);
+
+      setResults(allResults);
+      setFailed(allFailed);
+      setProgress(100);
+      
+      if (allResults.length && allFailed.length === 0) {
+        setProgressText('✅ Upload completed successfully!');
+        setShowPostSuccessOptions(true);
+      } else if (allResults.length > 0) {
+        setProgressText(`✅ Upload completed with ${allFailed.length} failures`);
+      } else {
+        setProgressText('❌ Upload failed');
+      }
+    } catch (err) {
+      console.error('Upload failed:', err);
+      setProgressText(`❌ Upload failed: ${err.message}`);
+      alert('Upload failed: ' + err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const retryFailedUploads = () => {
+    const retryImages = failed.map((f) => {
+      const idx = f.index ?? 0;
+      return images[idx];
+    });
+    setImages(retryImages);
+    setFailed([]);
+    setShowModal(false);
+  };
+
+  return (
+    <div className="flex flex-col gap-8">
+      <h2 className="text-xl font-semibold text-white">Multiple NFT Upload</h2>
+
+      <div className="flex flex-col lg:flex-row gap-8">
+        <div className="w-full">
+          <label className="text-sm text-zinc-400 block mb-2">Upload images *</label>
+          <div
+            className="w-full min-h-[192px] bg-zinc-900 border border-zinc-600 rounded-xl p-2 cursor-pointer hover:ring-1 hover:ring-pink-500"
+            onClick={() => fileInputRef.current.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={handleImageUpload}
+          >
+            <div className="flex justify-center items-center h-full min-h-[192px]">
+              <img src={uploadIcon} alt="upload" className="w-8 h-8 opacity-70" />
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleImageUpload}
+              className="hidden"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6 overflow-x-auto">
+        <table className="w-full text-sm text-left text-zinc-400">
+          <thead className="text-xs uppercase bg-zinc-800 text-zinc-400">
+            <tr>
+              <th className="px-4 py-2">#</th>
+              <th className="px-4 py-2">Preview</th>
+              <th className="px-4 py-2">Name</th>
+              <th className="px-4 py-2">Description</th>
+              <th className="px-4 py-2">Attributes</th>
+              <th className="px-4 py-2">Remove</th>
+            </tr>
+          </thead>
+          <tbody>
+            {images.map((img, i) => (
+              <tr key={i} className="border-b border-zinc-700">
+                <td className="px-4 py-2">{i + 1}</td>
+                <td className="px-4 py-2">
+                  <img
+                    src={URL.createObjectURL(img.file)}
+                    alt={`preview-${i}`}
+                    className="w-12 h-12 object-cover rounded"
+                  />
+                </td>
+                <td className="px-4 py-2">
+                  <input
+                    type="text"
+                    value={img.name}
+                    onChange={(e) => {
+                      const updated = [...images];
+                      updated[i].name = e.target.value;
+                      setImages(updated);
+                    }}
+                    className="w-full p-2 rounded bg-zinc-900 border border-zinc-700 text-white text-sm"
+                  />
+                </td>
+                <td className="px-4 py-2">
+                  <input
+                    type="text"
+                    value={img.description}
+                    onChange={(e) => {
+                      const updated = [...images];
+                      updated[i].description = e.target.value;
+                      setImages(updated);
+                    }}
+                    className="w-full p-2 rounded bg-zinc-900 border border-zinc-700 text-white text-sm"
+                  />
+                </td>
+                <td className="px-4 py-2 space-y-2">
+                  {img.attributes.map((attr, idx) => (
+                    <div key={idx} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={attr.trait_type}
+                        placeholder="Trait"
+                        onChange={(e) => {
+                          const updated = [...images];
+                          updated[i].attributes[idx].trait_type = e.target.value;
+                          setImages(updated);
+                        }}
+                        className="w-1/2 p-2 rounded bg-zinc-900 border border-zinc-700 text-white text-sm"
+                      />
+                      <input
+                        type="text"
+                        value={attr.value}
+                        placeholder="Value"
+                        onChange={(e) => {
+                          const updated = [...images];
+                          updated[i].attributes[idx].value = e.target.value;
+                          setImages(updated);
+                        }}
+                        className="w-1/2 p-2 rounded bg-zinc-900 border border-zinc-700 text-white text-sm"
+                      />
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => {
+                      const updated = [...images];
+                      updated[i].attributes.push({ trait_type: '', value: '' });
+                      setImages(updated);
+                    }}
+                    className="text-xs text-blue-400 hover:underline mt-1"
+                  >
+                    + Add more
+                  </button>
+                </td>
+                <td className="px-4 py-2">
+                  <button
+                    onClick={() => {
+                      const updated = [...images];
+                      updated.splice(i, 1);
+                      setImages(updated);
+                    }}
+                    className="text-xs text-red-400 hover:underline"
+                  >
+                    Remove
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <button
+        onClick={handlePublish}
+        disabled={uploading}
+        className="w-full py-3 rounded-lg bg-gradient-to-r from-[#00A3FF] to-[#FF1CF7] text-white font-semibold text-sm shadow-md active:scale-95 transition"
+      >
+        {uploading ? 'Uploading...' : 'Publish NFTs'}
+      </button>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
+          <div className="bg-zinc-900 p-6 rounded-xl shadow-lg max-w-lg w-full text-center relative animate-fadeIn">
+            <button className="absolute top-2 right-2 text-zinc-400 hover:text-red-400" onClick={() => setShowModal(false)}>
+              <X size={20} />
+            </button>
+            <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-pink-500 to-blue-500 bg-clip-text text-transparent">
+              Upload Progress
+            </h3>
+            <div className="w-full bg-zinc-700 rounded-full h-5 mb-4 relative">
+              <div
+                className="bg-gradient-to-r from-blue-500 to-pink-500 h-5 rounded-full transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              ></div>
+              <span className="absolute inset-0 flex justify-center items-center text-sm text-white font-semibold">
+                {progress}%
+              </span>
+            </div>
+            <p className="text-sm text-zinc-400 mb-4">{progressText}</p>
+            <ul className="text-left text-sm max-h-48 overflow-y-auto space-y-1 mb-4">
+              {results.map((r, i) => (
+                <li key={i} className="text-green-400">✅ {r.name}</li>
+              ))}
+              {failed.map((f, i) => (
+                <li key={`f-${i}`} className="text-red-400">❌ {f.name || `Unnamed #${i + 1}`} - {f.reason || 'failed'}</li>
+              ))}
+            </ul>
+            {failed.length > 0 && (
+              <button onClick={retryFailedUploads} className="w-full mb-2 py-2 rounded bg-orange-500 hover:bg-orange-600 text-white text-sm">
+                Retry Failed Uploads
+              </button>
+            )}
+            {showPostSuccessOptions ? (
+              <div className="space-y-2">
+                <button
+                  onClick={() => navigate('/dashboard')}
+                  className="w-full py-2 rounded bg-green-600 hover:bg-green-700 text-white text-sm"
+                >
+                  Go to My Studio
+                </button>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className="w-full py-2 rounded bg-zinc-700 hover:bg-zinc-600 text-white text-sm"
+                >
+                  Stay Here
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowModal(false)}
+                className="w-full py-2 rounded bg-zinc-700 hover:bg-zinc-600 text-white text-sm"
+              >
+                Close
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default MultipleNFT;

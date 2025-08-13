@@ -1,0 +1,58 @@
+/* /src/styles/custom-datepicker.css */
+
+.react-datepicker {
+    background-color: #18181b; /* тёмный фон */
+    border: 1px solid #3f3f46;
+    color: #e4e4e7;
+    border-radius: 0.75rem;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .react-datepicker__header {
+    background-color: #27272a;
+    border-bottom: 1px solid #3f3f46;
+  }
+  
+  .react-datepicker__current-month,
+  .react-datepicker-time__header,
+  .react-datepicker-year-header {
+    color: #f472b6; /* розовый акцент */
+  }
+  
+  .react-datepicker__day-name,
+  .react-datepicker__day,
+  .react-datepicker__time-name {
+    color: #e4e4e7;
+  }
+  
+  .react-datepicker__day--selected,
+  .react-datepicker__day--keyboard-selected {
+    background-color: #3b82f6; /* синий акцент */
+    color: white;
+  }
+  
+  .react-datepicker__day--today {
+    border: 1px solid #f472b6; /* розовая обводка для сегодняшнего дня */
+  }
+  
+  .react-datepicker__time-container {
+    border-left: 1px solid #3f3f46;
+  }
+  
+  .react-datepicker__time {
+    background-color: #18181b;
+  }
+  
+  .react-datepicker__time-list-item--selected {
+    background-color: #3b82f6;
+    color: white;
+  }
+  
+  .react-datepicker__triangle {
+    display: none; /* убрать треугольник */
+  }
+  
+  .react-datepicker__navigation-icon::before {
+    border-color: #f472b6; /* розовые стрелки */
+  }
+  
