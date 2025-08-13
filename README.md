@@ -1,27 +1,25 @@
-# Dreava Launchpad (Public Frontend)
+# Dreava Launchpad (Somnia Testnet)
 
-This is the public, sanitized frontend of the Dreava Launchpad used for Somnia Testnet.
+Public frontend overview for investors and grant reviewers.
 
-- Network: Somnia Testnet (chainId 50312, 0xc488)
-- Wallets: MetaMask, Rabby, WalletConnect via Reown AppKit + Wagmi
-- Core flows: connect, network switch enforcement, mint, create collection, launch sale
-- Quest endpoints: `/api/quest/*` consumed from production API (not part of this repo)
+- Purpose: Demonstrate Dreava NFT Launchpad UX on Somnia Testnet
+- Scope: Client-only code, no backend or secrets
+- Status: Live on `https://dreava.art`
 
-What’s included
-- Frontend source (`src/`), Vite/Tailwind configs, `index.html`, and public assets
-- `.env.example` with required environment vars
-- Docs: `SOMNIA_QUEST_API.md` (read-only API spec), `REOWN_ONLY_SETUP.md`, `Docs.md`
+## Highlights
+- Enforces Somnia Testnet (50312 / 0xc488) for all critical actions
+- Wallets: MetaMask, Rabby, WalletConnect (via Reown AppKit + Wagmi)
+- Core flows: connect wallet, mint, create collection, launch sale
+- Mobile-first UI; works in in-app wallet browsers
 
-What’s excluded
-- Private backend code, deployment scripts, server configs, secrets
+## Tech
+- React, Vite, Tailwind CSS
+- Wagmi + Ethers.js
 
-Quickstart
-1. Copy `.env.example` to `.env` and fill values
-2. Install deps: `npm i`
-3. Dev: `npm run dev`
-4. Build: `npm run build` and `npm run preview`
+## Notes
+- This repo intentionally excludes server code, deployment, and any private configs.
+- Use the live site to experience real flows: `https://dreava.art`
 
-Notes
-- The app enforces Somnia Testnet on critical actions.
-- Service worker and caching safe for mobile wallets.
-- Media assets are minimal; replace with your own if needed.
+## Contact
+- Email: hello@dreava.art
+- Website: `https://dreava.art`
