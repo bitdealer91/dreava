@@ -21,5 +21,5 @@ Public frontend overview for investors and grant reviewers.
 - Use the live site to experience real flows: `https://dreava.art`
 
 ## Contact
-- Email: hello@dreava.art
+- Email: bitdealer91@gmail.com
 - Website: `https://dreava.art`
